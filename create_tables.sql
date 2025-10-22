@@ -41,7 +41,7 @@ CREATE TABLE AddedToShelf (
 
 CREATE TABLE PersonalRating (
 	ISBN CHAR(13) PRIMARY KEY,
-	rating INT check (rating BETWEEN 1 AND 5)
+	rating INT check (rating BETWEEN 1 AND 5),
 	text_review VARCHAR(1000),
 	FOREIGN KEY (ISBN) REFERENCES Book(ISBN) ON DELETE CASCADE
 );
