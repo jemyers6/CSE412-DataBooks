@@ -311,9 +311,58 @@ def create_review(): # INSERT INTO PersonalRating (ISBN, rating, text_review)
 
 # f
 def remove_from_shelf(): # DELETE FROM AddedToShelf
+    # DELETE FROM AddedToShelf
+    # WHERE shelf_id = 1 AND ISBN = '9781984854032';
+
     book_name = input("Enter book name: ")
     author_name = input("Enter author name: ")
     shelf_name = input("Enter shelf name: ")
+
+    cursor.execute("""
+        SELECT shelf_id
+        FROM DigitalShelf
+        WHERE name = %s
+        """, (shelf_name,))
+    shelf = cursor.fetchone()
+
+    if not shelf:
+        print("Shelf not found")
+        return
+
+    shelf_id = shelf[0]
+
+    cursor.execute("""
+        SELECT b.isbn
+        FROM Book b
+        JOIN Writes w ON b.isbn = w.isbn
+        Join Author a ON w.author_id = a.author_id
+        WHERE b.title = %s AND a.name = %s
+        """, (book_name, author_name))
+
+    book = cursor.fetchone()
+
+    if not book:
+        print("Book not found, check title and author.")
+        return
+
+    isbn = book[0]
+
+    cursor.execute("""
+        SELECT 1 FROM AddedToShelf
+        WHERE shelf_id = %s AND isbn = %s
+        """, (shelf_id, isbn))
+
+    if cursor.fetchone():
+        print("Removing book from shelf...")
+        cursor.execute("""
+            DELETE FROM AddedToShelf
+            WHERE shelf_id = %s AND isbn = %s
+            """, (shelf_id, isbn))
+        conn.commit()
+        print("Book successfully deleted from shelf.")
+        return
+    else:
+        print("Book is not in shelf.")
 
 # g
 def show_by_rating():
@@ -369,13 +418,30 @@ def show_by_author():
     for title, isbn in results:
         print(f"{title[:65]:65} | {isbn:15}")
     return
-# i
+
+#i
 def show_currently_reading():
     # SELECT b.title, b.ISBN, bs.progress_page
     # FROM Book b
     # JOIN BookStatus bs ON b.ISBN = bs.ISBN
     # WHERE bs.read_status = 'CURRENTLY_READING';
-    return
+    cursor.execute("""
+        SELECT b.title, b.isbn, bs.progress_page
+        FROM Book b
+        JOIN BookStatus bs ON b.isbn = bs.isbn
+        WHERE bs.read_status = 'CURRENTLY_READING';""")
+
+    results = cursor.fetchall()
+    if not results:
+        print("Not currently reading any books.")
+        return
+
+    print("\nBooks currently reading\n")
+    print(f"{'Title':65} | {'ISBN':15} | {'Progress Page':3}")
+    print("-" * 85)
+
+    for title, isbn, progress_page in results:
+        print(f"{title[:65]:65} | {isbn:15} | {progress_page:3}")
 
 # j
 def show_want_to_read():
@@ -383,7 +449,23 @@ def show_want_to_read():
     # FROM Book b
     # JOIN BookStatus bs ON b.ISBN = bs.ISBN
     # WHERE bs.read_status = 'WANT_TO_READ';
-    return
+    cursor.execute("""
+        SELECT b.title, b.isbn
+        FROM Book b
+        JOIN BookStatus bs ON b.isbn = bs.isbn
+        WHERE bs.read_status = 'WANT_TO_READ';""")
+
+    results = cursor.fetchall()
+    if not results:
+        print("No books are currently marked as \"Want to Read\"")
+        return
+
+    print("\nBooks \"Want To Read\"\n")
+    print(f"{'Title':65} | {'ISBN':15}")
+    print("-" * 80)
+
+    for title, isbn in results:
+        print(f"{title[:65]:65} | {isbn:15}")
 
 # k
 def show_bookshelf_most():
@@ -392,7 +474,24 @@ def show_bookshelf_most():
     # JOIN AddedToShelf ats ON ds.shelf_id = ats.shelf_id
     # GROUP BY ds.shelf_id, ds.name
     # ORDER BY book_count DESC;
-    return
+    cursor.execute("""
+        SELECT ds.name AS shelf_name, COUNT(ats.ISBN) AS book_count
+        FROM DigitalShelf ds
+        JOIN AddedToShelf ats ON ds.shelf_id = ats.shelf_id
+        GROUP BY ds.shelf_id, ds.name
+        ORDER BY book_count DESC;""")
+
+    results = cursor.fetchall()
+    if not results:
+        print("No bookshelf found.")
+        return
+
+    ds_name = results[0][0]
+    count = results[0][1]
+
+    print("\nBookshelf with the most books\n")
+    print(f"Bookshelf: {ds_name}")
+    print(f"Number of Books: {count}")
 
 
 
